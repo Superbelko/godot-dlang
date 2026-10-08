@@ -647,6 +647,12 @@ version(USE_CLASSES) {
             assert(instancePrototype.getReferenceCount() == 1); // ensure there is only one live reference
         }
 
+        // test issue 236
+        {
+            GodotCallable callable = GodotCallable(getTree().getRoot(), "grab_focus");
+            assert(callable.getObject());
+        }
+
     }
 }
 
