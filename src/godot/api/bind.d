@@ -87,18 +87,37 @@ Return callBuiltinMethod(Return, Args...)(in GDExtensionPtrBuiltInMethod method,
 
     GDExtensionTypePtr[Args.length + 1] _args;
     foreach (i, ref a; args) {
+        // this function handles godot's PtrToArg.encode/decode for godot object, 
+        // another similar type is Ref which uses a struct that should work implicitly,
+        // most other variant types works directly as is
+        //
         // TODO: remove this static_if hack thing once the object casts mess will be resolved
-        static if (is(typeof(a) == GodotObject))
-          _args[i] = cast(void*) a;
-        else static if (is(typeof(a) == void*))
+        static if (is(typeof(a) == GodotObject)) {
+          version(USE_CLASSES) {
+            // make up a temp variable for handle since godot expects pointer to that handle as in PtrToArg.encode for object
+            mixin("godot_object go"~text(i)~" = a._gdextension_handle;
+            _args[i] = &go" ~ text(i) ~ ";");
+          } else
+            _args[i] = &a;
+        } else static if (is(typeof(a) == void*))
           _args[i] = a;
         else
         _args[i] = &a;
     }
 
     method(obj, _args.ptr, &ret, _args.length);
-    static if (!is(Return == void))
+
+    // this is similar to PtrToArg.decode for godot object
+    static if (!is(Return == void)) {
+        version(USE_CLASSES) {
+            // make new D object if necessary, unlike structs there is a layer of indirection that has to be taken care of
+            static if (is(Return : GodotObject))
+              return memnew!Return(*cast(godot_object*) &ret);
+            else
+              return ret;
+        } else
         return ret;
+    }
 }
 
 /++
@@ -115,18 +134,37 @@ Return callBuiltinFunction(Return, Args...)(in GDExtensionPtrUtilityFunction fun
 
     GDExtensionTypePtr[Args.length + 1] _args;
     foreach (i, ref a; args) {
+        // this function handles godot's PtrToArg.encode/decode for godot object, 
+        // another similar type is Ref which uses a struct that should work implicitly,
+        // most other variant types works directly as is
+        //
         // TODO: remove this static_if hack thing once the object casts mess will be resolved
-        static if (is(typeof(a) == GodotObject))
-          _args[i] = cast(void*) a;
-        else static if (is(typeof(a) == void*))
+        static if (is(typeof(a) == GodotObject)) {
+          version(USE_CLASSES) {
+            // make up a temp variable for handle since godot expects pointer to that handle
+            mixin("godot_object go"~text(i)~" = a._gdextension_handle;
+            _args[i] = &go" ~ text(i) ~ ";");
+          } else
+            _args[i] = &a;
+        } else static if (is(typeof(a) == void*))
           _args[i] = a;
         else
         _args[i] = cast(void*) cast() &a;
     }
 
     func(&ret, _args.ptr, _args.length);
-    static if (!is(Return == void))
+
+    // this is similar to PtrToArg.decode for godot object
+    static if (!is(Return == void)) {
+        version(USE_CLASSES) {
+            // make new D object if necessary, unlike structs there is a layer of indirection that has to be taken care of
+            static if (is(Return : GodotObject))
+              return memnew!Return(*cast(godot_object*) &ret);
+            else
+              return ret;
+        } else
         return ret;
+    }
 }
 
 //@nogc nothrow 
@@ -154,9 +192,15 @@ Return callBuiltinCtor(Return, Args...)(in GDExtensionPtrConstructor method, GDE
     GDExtensionTypePtr[Args.length + 1] _args;
     foreach (i, ref a; args) {
         // TODO: remove this static_if hack thing once the object casts mess will be resolved
-        static if (is(typeof(a) == GodotObject))
-          _args[i] = cast(void*) a;
-        else static if (is(typeof(a) == void*))
+        // also wtf is with it, godot expects pointer to arg, but we can't do that with CLASSES version
+        static if (is(typeof(a) == GodotObject)) {
+          version(USE_CLASSES) {
+            // make up a temp variable for handle since godot expects pointer to that handle
+            mixin("godot_object go"~text(i)~" = a._gdextension_handle;
+            _args[i] = &go" ~ text(i) ~ ";");
+          } else
+            _args[i] = &a;
+        } else static if (is(typeof(a) == void*))
           _args[i] = a;
         else
         _args[i] = &a;
